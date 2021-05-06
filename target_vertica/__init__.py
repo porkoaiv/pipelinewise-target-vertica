@@ -6,83 +6,35 @@ import json
 import os
 import sys
 import copy
-from datetime import datetime
-from decimal import Decimal
 from tempfile import mkstemp
 
 from joblib import Parallel, delayed, parallel_backend
 from jsonschema import Draft7Validator, FormatChecker
-from singer import get_logger
 
-from target_postgres.db_sync import DbSync
+from target_vertica.db_sync import DbSync
 
-LOGGER = get_logger('target_postgres')
+from target_vertica.exceptions import (
+    InvalidValidationOperationException, 
+    RecordValidationException
+)
+
+
+from target_vertica.utils import (
+    float_to_decimal, 
+    add_metadata_columns_to_schema,
+    add_metadata_values_to_record,
+    emit_state,
+    LOGGER
+)
+
 
 DEFAULT_BATCH_SIZE_ROWS = 100000
 DEFAULT_PARALLELISM = 0  # 0 The number of threads used to flush tables
 DEFAULT_MAX_PARALLELISM = 16  # Don't use more than this number of threads by default when flushing streams in parallel
 
 
-class RecordValidationException(Exception):
-    """Exception to raise when record validation failed"""
-
-
-class InvalidValidationOperationException(Exception):
-    """Exception to raise when internal JSON schema validation process failed"""
-
-
-def float_to_decimal(value):
-    """Walk the given data structure and turn all instances of float into
-    double."""
-    if isinstance(value, float):
-        return Decimal(str(value))
-    if isinstance(value, list):
-        return [float_to_decimal(child) for child in value]
-    if isinstance(value, dict):
-        return {k: float_to_decimal(v) for k, v in value.items()}
-    return value
-
-
-def add_metadata_columns_to_schema(schema_message):
-    """Metadata _sdc columns according to the stitch documentation at
-    https://www.stitchdata.com/docs/data-structure/integration-schemas#sdc-columns
-
-    Metadata columns gives information about data injections
-    """
-    extended_schema_message = schema_message
-    extended_schema_message['schema']['properties']['_sdc_extracted_at'] = {'type': ['null', 'string'],
-                                                                            'format': 'date-time'}
-    extended_schema_message['schema']['properties']['_sdc_batched_at'] = {'type': ['null', 'string'],
-                                                                          'format': 'date-time'}
-    extended_schema_message['schema']['properties']['_sdc_deleted_at'] = {'type': ['null', 'string']}
-
-    return extended_schema_message
-
-
-def add_metadata_values_to_record(record_message):
-    """Populate metadata _sdc columns from incoming record message
-    The location of the required attributes are fixed in the stream
-    """
-    extended_record = record_message['record']
-    extended_record['_sdc_extracted_at'] = record_message.get('time_extracted')
-    extended_record['_sdc_batched_at'] = datetime.now().isoformat()
-    extended_record['_sdc_deleted_at'] = record_message.get('record', {}).get('_sdc_deleted_at')
-
-    return extended_record
-
-
-def emit_state(state):
-    """Emit state message to standard output then it can be
-    consumed by other components"""
-    if state is not None:
-        line = json.dumps(state)
-        LOGGER.debug('Emitting state %s', line)
-        sys.stdout.write("{}\n".format(line))
-        sys.stdout.flush()
-
-
 # pylint: disable=too-many-locals,too-many-branches,too-many-statements,invalid-name,consider-iterating-dictionary
-def persist_lines(config, lines) -> None:
+def persist_lines(config, lines):
     """Read singer messages and process them line by line"""
     state = None
     flushed_state = None
@@ -106,6 +58,7 @@ def persist_lines(config, lines) -> None:
 
         if 'type' not in o:
             raise Exception("Line is missing required key 'type': {}".format(line))
+
         t = o['type']
 
         if t == 'RECORD':
@@ -158,28 +111,22 @@ def persist_lines(config, lines) -> None:
                     filter_streams = [stream]
 
                 # Flush and return a new state dict with new positions only for the flushed streams
-                flushed_state = flush_streams(records_to_load,
-                                              row_count,
-                                              stream_to_sync,
-                                              config,
-                                              state,
-                                              flushed_state,
-                                              filter_streams=filter_streams)
+                flushed_state = flush_streams(
+                    records_to_load,
+                    row_count,
+                    stream_to_sync,
+                    config,
+                    state,
+                    flushed_state,
+                    filter_streams=filter_streams)
 
                 # emit last encountered state
                 emit_state(copy.deepcopy(flushed_state))
 
-        elif t == 'STATE':
-            LOGGER.debug('Setting state to %s', o['value'])
-            state = o['value']
-
-            # Initially set flushed state
-            if not flushed_state:
-                flushed_state = copy.deepcopy(state)
-
         elif t == 'SCHEMA':
             if 'stream' not in o:
                 raise Exception("Line is missing required key 'stream': {}".format(line))
+
             stream = o['stream']
 
             schemas[stream] = float_to_decimal(o['schema'])
@@ -201,9 +148,9 @@ def persist_lines(config, lines) -> None:
             # Stop loading data by default if no Primary Key.
             #
             # If you want to load tables with no Primary Key:
-            #  1) Set ` 'primary_key_required': false ` in the target-postgres config.json
+            #  1) Set ` 'primary_key_required': false ` in the target-vertica config.json
             #  or
-            #  2) Use fastsync [postgres-to-postgres, mysql-to-postgres, etc.]
+            #  2) Use fastsync [postgres-to-vertica, mysql-to-vertica, etc.]
             if config.get('primary_key_required', True) and len(o['key_properties']) == 0:
                 LOGGER.critical("Primary key is set to mandatory but not defined in the [%s] stream", stream)
                 raise Exception("key_properties field is required")
@@ -223,6 +170,14 @@ def persist_lines(config, lines) -> None:
 
         elif t == 'ACTIVATE_VERSION':
             LOGGER.debug('ACTIVATE_VERSION message')
+
+            # Initially set flushed state
+            if not flushed_state:
+                flushed_state = copy.deepcopy(state)
+
+        elif t == 'STATE':
+            LOGGER.debug('Setting state to %s', o['value'])
+            state = o['value']
 
             # Initially set flushed state
             if not flushed_state:
@@ -255,7 +210,7 @@ def flush_streams(
     Flushes all buckets and resets records count to 0 as well as empties records to load list
     :param streams: dictionary with records to load per stream
     :param row_count: dictionary with row count per stream
-    :param stream_to_sync: Postgres db sync instance per stream
+    :param stream_to_sync: Vertica db sync instance per stream
     :param config: dictionary containing the configuration
     :param state: dictionary containing the original state from tap
     :param flushed_state: dictionary containing updated states only when streams got flushed
@@ -284,6 +239,7 @@ def flush_streams(
         streams_to_flush = streams.keys()
 
     # Single-host, thread-based parallelism
+    # {CHECK} NEED TO CHECK THIS PART MORE CLEARLY.
     with parallel_backend('threading', n_jobs=parallelism):
         Parallel()(delayed(load_stream_batch)(
             stream=stream,
@@ -320,17 +276,14 @@ def flush_streams(
 def load_stream_batch(stream, records_to_load, row_count, db_sync, delete_rows=False, temp_dir=None):
     """Load a batch of records and do post load operations, like creating
     or deleting rows"""
-    # Load into Postgres
+    # Load into vertica
     if row_count[stream] > 0:
         flush_records(stream, records_to_load, row_count[stream], db_sync, temp_dir)
-
     # Load finished, create indices if required
-    db_sync.create_indices(stream)
-
+    db_sync.create_projections(stream)
     # Delete soft-deleted, flagged rows - where _sdc_deleted at is not null
     if delete_rows:
         db_sync.delete_rows(stream)
-
     # reset row count for the current stream
     row_count[stream] = 0
 
@@ -338,6 +291,7 @@ def load_stream_batch(stream, records_to_load, row_count, db_sync, delete_rows=F
 # pylint: disable=unused-argument
 def flush_records(stream, records_to_load, row_count, db_sync, temp_dir=None):
     """Take a list of records and load into database"""
+    # [CHECK] CSV RECORDS ARE LOADED HERE NEED TO CHECK.
     if temp_dir:
         temp_dir = os.path.expanduser(temp_dir)
         os.makedirs(temp_dir, exist_ok=True)
