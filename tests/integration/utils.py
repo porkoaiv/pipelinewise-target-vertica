@@ -9,15 +9,15 @@ def get_db_config():
     # Default configuration settings for integration tests.
     # --------------------------------------------------------------------------
     # The following values needs to be defined in environment variables with
-    # valid details to a Postgres instace
+    # valid details to a Vertica instace
     # --------------------------------------------------------------------------
-    # Postgres instance
-    config['host'] = os.environ.get('TARGET_POSTGRES_HOST')
-    config['port'] = os.environ.get('TARGET_POSTGRES_PORT')
-    config['user'] = os.environ.get('TARGET_POSTGRES_USER')
-    config['password'] = os.environ.get('TARGET_POSTGRES_PASSWORD')
-    config['dbname'] = os.environ.get('TARGET_POSTGRES_DBNAME')
-    config['default_target_schema'] = os.environ.get("TARGET_POSTGRES_SCHEMA")
+    # Vertica instance
+    config['host'] = os.environ.get('TARGET_VERTICA_HOST')
+    config['port'] = os.environ.get('TARGET_VERTICA_PORT')
+    config['user'] = os.environ.get('TARGET_VERTICA_USER')
+    config['password'] = os.environ.get('TARGET_VERTICA_PASSWORD')
+    config['dbname'] = os.environ.get('TARGET_VERTICA_DBNAME')
+    config['default_target_schema'] = os.environ.get("TARGET_VERTICA_SCHEMA")
 
 
     # --------------------------------------------------------------------------
@@ -47,4 +47,3 @@ def get_test_tap_lines(filename):
             lines.append(line)
 
     return lines
-
