@@ -1,7 +1,7 @@
 import unittest
 from nose.tools import assert_raises
 
-import target_postgres
+import target_vertica
 
 
 class TestUnit(unittest.TestCase):
@@ -14,11 +14,11 @@ class TestUnit(unittest.TestCase):
 
     def test_config_validation(self):
         """Test configuration validator"""
-        validator = target_postgres.db_sync.validate_config
+        validator = target_vertica.db_sync.validate_config
         empty_config = {}
         minimal_config = {
             'host':                     "dummy-value",
-            'port':                     5432,
+            'port':                     5433,
             'user':                     "dummy-value",
             'password':                 "dummy-value",
             'dbname':                   "dummy-value",
@@ -51,8 +51,8 @@ class TestUnit(unittest.TestCase):
 
 
     def test_column_type_mapping(self):
-        """Test JSON type to Postgres column type mappings"""
-        mapper = target_postgres.db_sync.column_type
+        """Test JSON type to Vertica column type mappings"""
+        mapper = target_vertica.db_sync.column_type
 
         # Incoming JSON schema types
         json_str =          {"type": ["string"]             }
@@ -71,59 +71,59 @@ class TestUnit(unittest.TestCase):
         json_obj =          {"type": ["object"]             }
         json_arr =          {"type": ["array"]              }
         
-        # Mapping from JSON schema types to Postgres column types
-        self.assertEquals(mapper(json_str)          , 'character varying')
-        self.assertEquals(mapper(json_str_or_null)  , 'character varying')
-        self.assertEquals(mapper(json_dt)           , 'timestamp without time zone')
-        self.assertEquals(mapper(json_dt_or_null)   , 'timestamp without time zone')
-        self.assertEquals(mapper(json_t)            , 'time without time zone')
-        self.assertEquals(mapper(json_t_or_null)    , 'time without time zone')
-        self.assertEquals(mapper(json_num)          , 'double precision')
+        # Mapping from JSON schema types to Vertica column types
+        self.assertEquals(mapper(json_str)          , 'varchar(65000)')
+        self.assertEquals(mapper(json_str_or_null)  , 'varchar(65000)')
+        self.assertEquals(mapper(json_dt)           , 'timestamp')
+        self.assertEquals(mapper(json_dt_or_null)   , 'timestamp')
+        self.assertEquals(mapper(json_t)            , 'time')
+        self.assertEquals(mapper(json_t_or_null)    , 'time')
+        self.assertEquals(mapper(json_num)          , 'numeric')
         self.assertEquals(mapper(json_smallint)     , 'smallint')
-        self.assertEquals(mapper(json_int)          , 'integer')
+        self.assertEquals(mapper(json_int)          , 'int')
         self.assertEquals(mapper(json_bigint)       , 'bigint')
-        self.assertEquals(mapper(json_nobound_int)  , 'numeric')
-        self.assertEquals(mapper(json_int_or_str)   , 'character varying')
+        self.assertEquals(mapper(json_nobound_int)  , 'integer')
+        self.assertEquals(mapper(json_int_or_str)   , 'varchar')
         self.assertEquals(mapper(json_bool)         , 'boolean')
-        self.assertEquals(mapper(json_obj)          , 'jsonb')
-        self.assertEquals(mapper(json_arr)          , 'jsonb')
+        self.assertEquals(mapper(json_obj)          , 'long varchar(1048576)')
+        self.assertEquals(mapper(json_arr)          , 'long varchar(1048576)')
 
     def test_stream_name_to_dict(self):
         """Test identifying catalog, schema and table names from fully qualified stream and table names"""
         # Singer stream name format (Default '-' separator)
         assert \
-            target_postgres.db_sync.stream_name_to_dict('my_table') == \
+            target_vertica.db_sync.stream_name_to_dict('my_table') == \
             {"catalog_name": None, "schema_name": None, "table_name": "my_table"}
 
         # Singer stream name format (Default '-' separator)
         assert \
-            target_postgres.db_sync.stream_name_to_dict('my_schema-my_table') == \
+            target_vertica.db_sync.stream_name_to_dict('my_schema-my_table') == \
             {"catalog_name": None, "schema_name": "my_schema", "table_name": "my_table"}
 
         # Singer stream name format (Default '-' separator)
         assert \
-            target_postgres.db_sync.stream_name_to_dict('my_catalog-my_schema-my_table') == \
+            target_vertica.db_sync.stream_name_to_dict('my_catalog-my_schema-my_table') == \
             {"catalog_name": "my_catalog", "schema_name": "my_schema", "table_name": "my_table"}
 
-        # Redshift table format (Custom '.' separator)
+        # Vertica table format (Custom '.' separator)
         assert \
-            target_postgres.db_sync.stream_name_to_dict('my_table', separator='.') == \
+            target_vertica.db_sync.stream_name_to_dict('my_table', separator='.') == \
             {"catalog_name": None, "schema_name": None, "table_name": "my_table"}
 
-        # Redshift table format (Custom '.' separator)
+        # Vertica table format (Custom '.' separator)
         assert \
-            target_postgres.db_sync.stream_name_to_dict('my_schema.my_table', separator='.') == \
+            target_vertica.db_sync.stream_name_to_dict('my_schema.my_table', separator='.') == \
             {"catalog_name": None, "schema_name": "my_schema", "table_name": "my_table"}
 
-        # Redshift table format (Custom '.' separator)
+        # Vertica table format (Custom '.' separator)
         assert \
-            target_postgres.db_sync.stream_name_to_dict('my_catalog.my_schema.my_table', separator='.') == \
+            target_vertica.db_sync.stream_name_to_dict('my_catalog.my_schema.my_table', separator='.') == \
             {"catalog_name": "my_catalog", "schema_name": "my_schema", "table_name": "my_table"}
 
 
     def test_flatten_schema(self):
         """Test flattening of SCHEMA messages"""
-        flatten_schema = target_postgres.db_sync.flatten_schema
+        flatten_schema = target_vertica.db_sync.flatten_schema
 
         # Schema with no object properties should be empty dict
         schema_with_no_properties = {"type": "object"}
@@ -211,7 +211,7 @@ class TestUnit(unittest.TestCase):
 
     def test_flatten_record(self):
         """Test flattening of RECORD messages"""
-        flatten_record = target_postgres.db_sync.flatten_record
+        flatten_record = target_vertica.db_sync.flatten_record
 
         empty_record = {}
         # Empty record should be empty dict
@@ -281,7 +281,7 @@ class TestUnit(unittest.TestCase):
             }
 
     def test_flatten_record_with_flatten_schema(self):
-        flatten_record = target_postgres.db_sync.flatten_record
+        flatten_record = target_vertica.db_sync.flatten_record
 
         flatten_schema = {
             "id": {
