@@ -79,6 +79,7 @@ def validate_config(config):
         'password',
         'dbname'
     ]
+    # TODO: add s3_key and bucket (if required)
 
     # Check if mandatory keys exist
     for k in required_config_keys:
@@ -97,11 +98,16 @@ def validate_config(config):
 
 
 def column_type(schema_property):
+    # TODO: check and confirm the datatypes with vertica and self assign bytes.
+    # 
     """Take a specific schema property and return the vertica equivalent column type"""
     property_type = schema_property['type']
     property_format = schema_property['format'] if 'format' in schema_property else None
-    col_type = 'varchar(65000)'
+    # required to take long paragraphs or maybe there is a better way to auto-detect in vertica.
+    col_type = 'varchar(65000)'  
     if 'object' in property_type or 'array' in property_type:
+        # TODO: Data type for semi-structured data like json, xml. 
+        # (Vertica uses flex table for the same)
         col_type = 'long varchar(1048576)'
 
     # Every date-time JSON value is currently mapped to TIMESTAMP
@@ -249,6 +255,7 @@ def stream_name_to_dict(stream_name, separator='-'):
 
 
 def format_json(data, ordered=True):
+    # TODO: not required if semi structured data is fixed.
     """Format string into json/dictionary/list."""
     if data and isinstance(data, list) and isinstance(data[0], dict):
         for index, item in enumerate(data.copy()):
@@ -266,6 +273,7 @@ def format_json(data, ordered=True):
 
 
 def add_columns(data, columns):
+    # TODO: not required if columns are guaranteed in the CSV.
     """Adds columns in the begining of the CSV if not exist.
 
     Used to support parser fcsvparser() for vertica."""
