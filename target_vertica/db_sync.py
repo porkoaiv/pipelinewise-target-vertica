@@ -1,21 +1,5 @@
-# class DbSync methods that might need a lot of modification, 
-# maybe best to remove them as to my knowledge, 
-# i don't think if it is possible to have the same functionality as PostgreSQL.
-
-# 1.   [✓]   record_to_csv_line
-# 2.   [✓]   load_csv
-# 3.   [✓]   insert_from_temp_table
-# 4.   [✓]   update_from_temp_table
-# 5.   [✓]   primary_key_condition
-# 6.   [✓]   primary_key_null_condition
-# 7.   [✓]   create_projection
-# 8.   [✓]   create_projections
-# 9.   [✓]   sync_tables  
-
-
 import json
 import sys
-from typing import Dict
 import uuid
 import time
 from singer import get_logger
@@ -148,6 +132,7 @@ class DbSync:
                                                  max_level=self.data_flattening_max_level)
 
     def open_connection(self):
+        # TODO: Check for right ssl config.
         """Open Vertica connection"""
         conn_string = dict(
             host=self.connection_config['host'],
@@ -218,6 +203,9 @@ class DbSync:
         )
 
     def load_csv(self, file, count, size_bytes):
+        # TODO: Keep the columns of the csv as fcsvparser require columns inside the file.
+        # TODO: Add config for aws key and bucket.
+        # TODO: Check if compression is supported.
         """Load CSV files into Vertica database"""
         stream_schema_message = self.stream_schema_message
         stream = stream_schema_message['stream']
@@ -290,6 +278,7 @@ class DbSync:
                         pk=self.primary_key_condition(table))
 
     def primary_key_condition(self, right_table):
+        # TODO: Merge primary_key_condition funcions.
         """Returns primary keys"""
         stream_schema_message = self.stream_schema_message
         names = primary_column_names(stream_schema_message)
@@ -358,9 +347,10 @@ class DbSync:
 
     def create_projection(self, stream, column):
         # TODO: EDIT RESOURCE JSON TO INCLUDE ID FOR SCHEMA.
-        # [CHECK] - Secondary indexes are not supported with vertica but 
+        # TODO: Secondary indexes are not supported with vertica but 
         # The concept of 'projections' can be used instead of indexes.
         # projections are "CREATE TEXT INDEX txtindex-name ON table-name (hash(id), column-name)"
+        # TODO: Check if valid for vertica or can it even support the same functionality?
         table = self.table_name(stream)
         table_without_schema = self.table_name(stream, without_schema=True)
         index_name = 'i_{}_{}'.format(table_without_schema[:30].replace(' ', '').replace('"', ''),
@@ -371,14 +361,14 @@ class DbSync:
         self.query(query)
 
     def create_projections(self, stream):
-        # [CHECK] - Secondary indexes are not supported with vertica but 
+        # TODO: - Secondary indexes are not supported with vertica but 
         # The concept of 'projections' can be used instead of indexes.
         if isinstance(self.indices, list):
             for index in self.indices:
                 self.create_projection(stream, index)
 
     def delete_rows(self, stream):
-        # [CHECK] - RETURNING is not there in Vertica.
+        # TODO: "RETURN[ING]" is not there in Vertica. Find a workaround.
         # Removed as "RETURNING _sdc_deleted_at"
         """Hard delete rows from target table"""
         table = self.table_name(stream)
@@ -432,6 +422,7 @@ class DbSync:
         )
 
     def update_columns(self):
+        # TODO: refactor the function.
         """Adds required but not existing columns to the target table according to the schema"""
         stream_schema_message = self.stream_schema_message
         stream = stream_schema_message['stream']
