@@ -6,7 +6,7 @@ with open('README.md') as f:
       long_description = f.read()
 
 setup(name="pipelinewise-target-vertica",
-      version="0.0.1",
+      version="1.0.0",
       description="Singer.io target for loading data to Vertica - PipelineWise compatible",
       long_description=long_description,
       long_description_content_type='text/markdown',
