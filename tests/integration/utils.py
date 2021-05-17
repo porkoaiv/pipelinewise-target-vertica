@@ -19,7 +19,6 @@ def get_db_config():
     config['dbname'] = os.environ.get('TARGET_VERTICA_DBNAME')
     config['default_target_schema'] = os.environ.get("TARGET_VERTICA_SCHEMA")
 
-
     # --------------------------------------------------------------------------
     # The following variables needs to be empty.
     # The tests cases will set them automatically whenever it's needed
@@ -29,7 +28,6 @@ def get_db_config():
     config['add_metadata_columns'] = None
     config['hard_delete'] = None
     config['flush_all_streams'] = None
-
 
     return config
 
