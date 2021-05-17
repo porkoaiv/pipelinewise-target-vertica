@@ -239,7 +239,6 @@ def flush_streams(
         streams_to_flush = streams.keys()
 
     # Single-host, thread-based parallelism
-    # {CHECK} NEED TO CHECK THIS PART MORE CLEARLY.
     with parallel_backend('threading', n_jobs=parallelism):
         Parallel()(delayed(load_stream_batch)(
             stream=stream,
@@ -291,7 +290,6 @@ def load_stream_batch(stream, records_to_load, row_count, db_sync, delete_rows=F
 # pylint: disable=unused-argument
 def flush_records(stream, records_to_load, row_count, db_sync, temp_dir=None):
     """Take a list of records and load into database"""
-    # [CHECK] CSV RECORDS ARE LOADED HERE NEED TO CHECK.
     if temp_dir:
         temp_dir = os.path.expanduser(temp_dir)
         os.makedirs(temp_dir, exist_ok=True)
