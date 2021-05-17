@@ -13,9 +13,9 @@ from target_vertica.exceptions import (
 )
 
 try:
-    import tests.utils as test_utils
+    import tests.integration.utils as test_utils
 except ImportError:
-    import utils as test_utils
+    import integration.utils as test_utils
 
 METADATA_COLUMNS = [
     '_sdc_extracted_at',
