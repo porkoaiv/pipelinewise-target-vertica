@@ -10,7 +10,8 @@ setup(name="pipelinewise-target-vertica",
       description="Singer.io target for loading data to Vertica - PipelineWise compatible",
       long_description=long_description,
       long_description_content_type='text/markdown',
-      author="TransferWise",
+      author="Author Full 360",
+      url='https://github.com/full360/pipelinewise-target-vertica',
       classifiers=[
           'License :: OSI Approved :: Apache Software License',
           'Programming Language :: Python :: 3 :: Only'
