@@ -1,21 +1,19 @@
 import sys
 import json
 import ast
-import collections
-import inflection
 import re
 import itertools
+import inflection
+import collections
 
-from datetime import datetime
 from decimal import Decimal
 from singer import get_logger
-from io import StringIO, BytesIO
-
+from datetime import datetime
 
 LOGGER = get_logger('target_vertica')
 
 
-# STREAM UTILS BELOW...
+# ========= STREAM UTILS BELOW =========
 def float_to_decimal(value):
     """Walk the given data structure and turn all instances of float into
     double."""
@@ -68,7 +66,7 @@ def emit_state(state):
         sys.stdout.flush()
 
 
-# DBSYNC UTILS BELOW...
+# ========= DBSYNC UTILS BELOW  =========
 def validate_config(config):
     """Validate configuration"""
     errors = []
@@ -79,7 +77,6 @@ def validate_config(config):
         'password',
         'dbname'
     ]
-    # TODO: add s3_key and bucket (if required)
 
     # Check if mandatory keys exist
     for k in required_config_keys:
@@ -97,18 +94,25 @@ def validate_config(config):
     return errors
 
 
-def column_type(schema_property):
-    # TODO: check and confirm the datatypes with vertica and self assign bytes.
-    # 
+def column_type(schema_property, with_length=True):
+    # TODO: Data type for semi-structured data like json, xml. Vertica uses flex table for the same.
     """Take a specific schema property and return the vertica equivalent column type"""
+
+    DEFAULT_VARCHAR_LENGTH = 80
+    LONG_VARCHAR_LENGTH = 65000
+
     property_type = schema_property['type']
     property_format = schema_property['format'] if 'format' in schema_property else None
-    # required to take long paragraphs or maybe there is a better way to auto-detect in vertica.
-    col_type = 'varchar(65000)'  
+    col_type = 'varchar'
+    varchar_length = DEFAULT_VARCHAR_LENGTH
+    if schema_property.get('maxLength', 0) > varchar_length:
+        varchar_length = LONG_VARCHAR_LENGTH
     if 'object' in property_type or 'array' in property_type:
-        # TODO: Data type for semi-structured data like json, xml. 
-        # (Vertica uses flex table for the same)
-        col_type = 'long varchar(1048576)'
+        if schema_property.get('maxLength', 0) > LONG_VARCHAR_LENGTH:
+            col_type = 'long varchar'
+            varchar_length = '1048576'
+        else:
+            varchar_length = LONG_VARCHAR_LENGTH
 
     # Every date-time JSON value is currently mapped to TIMESTAMP
     elif property_format == 'date-time':
@@ -128,11 +132,16 @@ def column_type(schema_property):
             elif schema_property['maximum'] <= 9223372036854775807:
                 col_type = 'bigint'
         else:
-            col_type = 'integer'
+            col_type = 'int'
     elif 'boolean' in property_type:
         col_type = 'boolean'
 
-    get_logger('target_vertica').debug(
+    # Add max length to column type if required
+    if with_length:
+        if col_type == 'varchar' and varchar_length > 0:
+            col_type = '{}({})'.format(col_type, varchar_length)
+
+    LOGGER.debug(
         "schema_property: %s -> col_type: %s", schema_property, col_type)
 
     return col_type
@@ -190,7 +199,9 @@ def flatten_schema(d, parent_key=[], sep='__', level=0, max_level=0):
                     list(v.values())[0][0]['type'] = ['null', 'object']
                     items.append((new_key, list(v.values())[0][0]))
 
-    def key_func(item): return item[0]
+    def key_func(item): 
+        return item[0]
+
     sorted_items = sorted(items, key=key_func)
     for k, g in itertools.groupby(sorted_items, key=key_func):
         if len(list(g)) > 1:
@@ -255,13 +266,13 @@ def stream_name_to_dict(stream_name, separator='-'):
 
 
 def format_json(data, ordered=True):
-    # TODO: not required if semi structured data is fixed.
+    # INFO: Maybe not required if semi structured data is stored in flex table.
     """Format string into json/dictionary/list."""
     if data and isinstance(data, list) and isinstance(data[0], dict):
         for index, item in enumerate(data.copy()):
             for k, v in dict(item).items():
-                if (isinstance(v, str) and ('[' == v[0] and v[-1] == ']'
-                                         or '{' == v[0] and v[-1] == '}')):
+                if (isinstance(v, str) and (v[0] == '[' and v[-1] == ']'
+                                            or v[0] == '{' and v[-1] == '}')):
                     try:
                         data[index][k] = ast.literal_eval(v)
                     except ValueError:
@@ -269,24 +280,4 @@ def format_json(data, ordered=True):
         if not ordered:
             for index, item in enumerate(data.copy()):
                 data[index] = dict(item)
-    return data
-
-
-def add_columns(data, columns):
-    # TODO: not required if columns are guaranteed in the CSV.
-    """Adds columns in the begining of the CSV if not exist.
-
-    Used to support parser fcsvparser() for vertica."""
-    def _exists(data):
-        if isinstance(data, bytes):
-            data = data.decode('utf-8')
-        split_data = data.splitlines()
-        return (split_data and columns in split_data
-                and columns == split_data[0])
-
-    if not _exists(data):
-        if isinstance(data, bytes):
-            return BytesIO(str(columns + '\n').encode('utf-8') + data)
-        return StringIO(columns + '\n' + data)
-
     return data
