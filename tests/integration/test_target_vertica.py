@@ -7,10 +7,8 @@ import target_vertica
 
 from nose.tools import assert_raises
 from target_vertica.db_sync import DbSync
-from target_vertica.exceptions import (
-    CopyRejected,
-    RecordValidationException, 
-)
+from vertica_python.errors import CopyRejected
+from target_vertica.exceptions import RecordValidationException
 
 try:
     import tests.integration.utils as test_utils

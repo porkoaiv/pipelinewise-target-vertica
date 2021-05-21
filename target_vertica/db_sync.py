@@ -18,8 +18,10 @@ from target_vertica.utils import (
 )
 
 
-# pylint: disable=too-many-public-methods,too-many-instance-attributes
+# pylint: disable=too-many-public-methods,too-many-instance-attributes,missing-class-docstring,missing-function-docstring
 class DbSync:
+    """Data sync class for vertica"""
+
     def __init__(self, connection_config, stream_schema_message=None):
         """
             connection_config:      Vertica connection details
@@ -138,7 +140,6 @@ class DbSync:
                                                  max_level=self.data_flattening_max_level)
 
     def open_connection(self):
-        # TODO: Check for right ssl config.
         """Open Vertica connection"""
         conn_string = dict(
             host=self.connection_config['host'],
@@ -201,6 +202,7 @@ class DbSync:
             raise exc
         return ','.join(key_props)
 
+    # pylint: disable=missing-function-docstring,missing-class-docstring
     def record_to_csv_line(self, record):
         flatten = flatten_record(record, self.flatten_schema,
                                  max_level=self.data_flattening_max_level)
@@ -212,6 +214,7 @@ class DbSync:
             ]
         )
 
+    # pylint: disable=invalid-name
     def load_csv(self, file, count, size_bytes):
         """Load CSV files into Vertica database"""
         stream_schema_message = self.stream_schema_message
@@ -230,16 +233,13 @@ class DbSync:
                     table_name=temp_table, is_temporary=True, is_flex=False))
 
                 cur.fetchall()
-                copy_sql = ("""COPY {table} FROM STDIN 
+                copy_sql = ("""COPY {table} FROM STDIN
                                 PARSER fcsvparser(
-                                            delimiter=',', 
-                                            type='traditional', 
-                                            header=false) 
+                                            delimiter=',',
+                                            type='traditional',
+                                            header=false)
                                 ABORT ON ERROR"""
-                            .format(table=temp_table,
-                                    fields=', '.join(self.column_names())
-                                    )
-                            )
+                            .format(table=temp_table))
                 with open(file, 'rb') as fs:
                     cur.copy(copy_sql, fs)
 
@@ -256,7 +256,7 @@ class DbSync:
                                  self.table_name(stream, False),
                                  json.dumps({'inserts': inserts, 'updates': updates, 'size_bytes': size_bytes}))
 
-    # pylint: disable=duplicate-string-formatting-argument
+    # pylint: disable=duplicate-string-formatting-argument,bad-continuation
     def insert_from_temp_table(self, temp_table):
         """Insert non-temp table from aa temp table"""
         stream_schema_message = self.stream_schema_message
@@ -265,21 +265,14 @@ class DbSync:
 
         if len(stream_schema_message['key_properties']) == 0:
             return """INSERT INTO {} ({}) (SELECT s.* FROM {} s)
-                    """.format(
-                        table,
-                        ', '.join(columns),
-                        temp_table)
+                    """.format(table, ', '.join(columns), temp_table)
 
         return """INSERT INTO {} ({})
                     (SELECT s.* FROM {} s LEFT OUTER JOIN {} t ON {} WHERE {})
-                """.format(
-                    table,
-                    ', '.join(columns),
-                    temp_table,
-                    table,
-                    self.primary_key_condition('t'),
-                    self.primary_key_null_condition('t'))
+                """.format(table, ', '.join(columns), temp_table, table,
+                self.primary_key_condition('t'), self.primary_key_condition('t', null=True))
 
+    # pylint: disable=bad-continuation
     def update_from_temp_table(self, temp_table):
         """Update non-temp table from aa temp table"""
         stream_schema_message = self.stream_schema_message
@@ -287,24 +280,16 @@ class DbSync:
         table = self.table_name(stream_schema_message['stream'])
 
         return """UPDATE {table} SET {column_name} FROM {dataset} s WHERE {pk}
-                """.format(
-                    table=table,
-                    column_name=', '.join(['{}=s.{}'.format(c, c) for c in columns]),
-                    dataset=temp_table,
-                    pk=self.primary_key_condition(table))
+                """.format(table=table, column_name=', '.join(['{}=s.{}'.format(c, c) for c in columns]),
+                dataset=temp_table, pk=self.primary_key_condition(table))
 
-    def primary_key_condition(self, right_table):
-        # TODO: Merge primary_key_condition funcions.
-        """Returns primary keys"""
+    def primary_key_condition(self, right_table, null=False):
+        """Returns primary keys with/without null."""
         stream_schema_message = self.stream_schema_message
         names = primary_column_names(stream_schema_message)
+        if null:
+            return ' AND '.join(['{}.{} is null'.format(right_table, c) for c in names])
         return ' AND '.join(['s.{} = {}.{}'.format(c, right_table, c) for c in names])
-
-    def primary_key_null_condition(self, right_table):
-        """Returns primary keys with IS NULL condition"""
-        stream_schema_message = self.stream_schema_message
-        names = primary_column_names(stream_schema_message)
-        return ' AND '.join(['{}.{} is null'.format(right_table, c) for c in names])
 
     def column_names(self, double_inverted_commas=True):
         """List of all column names"""
@@ -323,8 +308,9 @@ class DbSync:
             for (name, schema) in self.flatten_schema.items()
         ]
 
-        primary_key = ["PRIMARY KEY ({})".format(', '.join(primary_column_names(stream_schema_message)))] \
-            if len(stream_schema_message['key_properties']) > 0 else []
+        primary_key = ["PRIMARY KEY ({})".format(', '.join(
+            primary_column_names(stream_schema_message)))] if len(
+                stream_schema_message['key_properties']) > 0 else []
 
         if not table_name:
             gen_table_name = self.table_name(
@@ -345,6 +331,7 @@ class DbSync:
             "Granting USAGE privilege on '%s' schema to '%s'... %s", schema_name, grantee, query)
         self.query(query)
 
+    # pylint: disable=invalid-name
     def grant_select_on_all_tables_in_schema(self, schema_name, grantee):
         """Grant select on all tables in schema"""
         query = "GRANT SELECT ON ALL TABLES IN SCHEMA {} TO {}".format(
@@ -365,8 +352,7 @@ class DbSync:
             grant_method(schema, grantees)
 
     def create_projection(self, stream, column):
-        # TODO: EDIT RESOURCE JSON TO INCLUDE ID FOR SCHEMA.
-        # TODO: Secondary indexes are not supported with vertica but
+        # Secondary indexes are not supported with vertica but
         # The concept of 'projections' can be used instead of indexes.
         # projections are "CREATE TEXT INDEX txtindex-name ON table-name (hash(id), column-name)"
         table = self.table_name(stream)
@@ -386,7 +372,6 @@ class DbSync:
                 self.create_projection(stream, index)
 
     def delete_rows(self, stream):
-        # Removed as "RETURNING _sdc_deleted_at"
         """Hard delete rows from target table"""
         table = self.table_name(stream)
         query = "DELETE FROM {} WHERE _sdc_deleted_at IS NOT NULL".format(
@@ -409,8 +394,8 @@ class DbSync:
         # Query realtime if not pre-collected
         else:
             schema_rows = self.query(
-                """SELECT LOWER(schema_name) schema_name 
-                    FROM v_catalog.schemata 
+                """SELECT LOWER(schema_name) schema_name
+                    FROM v_catalog.schemata
                     WHERE LOWER(schema_name) = %s""",
                 (schema_name.lower(),)
             )
@@ -426,19 +411,15 @@ class DbSync:
     def get_tables(self):
         """Get list of tables of certain schema(s) from vertica metadata"""
         return self.query(
-            """SELECT table_name 
-                FROM v_catalog.tables 
-                WHERE table_schema = %s""",
+            """SELECT table_name FROM v_catalog.tables WHERE table_schema = %s""",
             (self.schema_name,)
         )
 
     def get_table_columns(self, table_name):
         """Get list of columns and tables of certain schema(s) from vertica metadata"""
         return self.query(
-            """SELECT column_name, data_type
-                FROM v_catalog.columns
-                WHERE lower(table_name) = %s 
-                    AND lower(table_schema) = %s""",
+            """SELECT column_name, data_type FROM v_catalog.columns
+                WHERE lower(table_name) = %s AND lower(table_schema) = %s""",
             (table_name.replace("\"", "").lower(), self.schema_name.lower())
         )
 
@@ -480,11 +461,9 @@ class DbSync:
 
     def version_column(self, column_name, stream):
         """Versions a column in an existing table"""
-        version_column = "ALTER TABLE {} RENAME COLUMN {} TO \"{}_{}\"".format(self.table_name(stream, False),
-                                                                               column_name,
-                                                                               column_name.replace(
-                                                                                   "\"", ""),
-                                                                               time.strftime("%Y%m%d_%H%M"))
+        version_column = "ALTER TABLE {} RENAME COLUMN {} TO \"{}_{}\""\
+            .format(self.table_name(stream, False), column_name, column_name.replace("\"", ""),
+                    time.strftime("%Y%m%d_%H%M"))
         self.logger.info('Versioning column: %s', version_column)
         self.query(version_column)
 
@@ -500,13 +479,15 @@ class DbSync:
         stream_schema_message = self.stream_schema_message
         stream = stream_schema_message['stream']
         table_name = self.table_name(stream, is_temporary=False, without_schema=True)
-        found_tables = [table for table in (self.get_tables()) if f'"{table["table_name"].lower()}"' == table_name]
+        found_tables = [table for table in (
+            self.get_tables()) if f'"{table["table_name"].lower()}"' == table_name]
         if len(found_tables) == 0:
             query = self.create_table_query()
             self.logger.info("Table '%s' does not exist. Creating... %s", table_name, query)
             self.query(query)
 
-            self.grant_privilege(self.schema_name, self.grantees, self.grant_select_on_all_tables_in_schema)
+            self.grant_privilege(
+                self.schema_name, self.grantees, self.grant_select_on_all_tables_in_schema)
         else:
             self.logger.info("Table '%s' exists", table_name)
             self.update_columns()

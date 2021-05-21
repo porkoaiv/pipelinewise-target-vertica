@@ -14,13 +14,13 @@ from jsonschema import Draft7Validator, FormatChecker
 from target_vertica.db_sync import DbSync
 
 from target_vertica.exceptions import (
-    InvalidValidationOperationException, 
+    InvalidValidationOperationException,
     RecordValidationException
 )
 
 
 from target_vertica.utils import (
-    float_to_decimal, 
+    float_to_decimal,
     add_metadata_columns_to_schema,
     add_metadata_values_to_record,
     emit_state,

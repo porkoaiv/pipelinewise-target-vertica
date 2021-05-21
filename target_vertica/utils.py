@@ -14,6 +14,11 @@ LOGGER = get_logger('target_vertica')
 
 
 # ========= STREAM UTILS BELOW =========
+
+DEFAULT_VARCHAR_LENGTH = 80
+LONG_VARCHAR_LENGTH = 65000
+
+
 def float_to_decimal(value):
     """Walk the given data structure and turn all instances of float into
     double."""
@@ -93,13 +98,10 @@ def validate_config(config):
 
     return errors
 
-
+# pylint: disable=fixme,too-many-branches
 def column_type(schema_property, with_length=True):
     # TODO: Data type for semi-structured data like json, xml. Vertica uses flex table for the same.
     """Take a specific schema property and return the vertica equivalent column type"""
-
-    DEFAULT_VARCHAR_LENGTH = 80
-    LONG_VARCHAR_LENGTH = 65000
 
     property_type = schema_property['type']
     property_format = schema_property['format'] if 'format' in schema_property else None
@@ -157,6 +159,7 @@ def column_clause(name, schema_property):
     return '{} {}'.format(safe_column_name(name), column_type(schema_property))
 
 
+# pylint: disable=missing-function-docstring,missing-class-docstring
 def flatten_key(k, parent_key, sep):
     full_key = parent_key + [k]
     inflected_key = full_key.copy()
@@ -172,7 +175,7 @@ def flatten_key(k, parent_key, sep):
     return sep.join(inflected_key)
 
 
-# pylint: disable=dangerous-default-value,invalid-name
+# pylint: disable=dangerous-default-value,invalid-name,missing-function-docstring,missing-class-docstring
 def flatten_schema(d, parent_key=[], sep='__', level=0, max_level=0):
     items = []
 
@@ -199,7 +202,7 @@ def flatten_schema(d, parent_key=[], sep='__', level=0, max_level=0):
                     list(v.values())[0][0]['type'] = ['null', 'object']
                     items.append((new_key, list(v.values())[0][0]))
 
-    def key_func(item): 
+    def key_func(item):
         return item[0]
 
     sorted_items = sorted(items, key=key_func)
@@ -223,7 +226,7 @@ def _should_json_dump_value(key, value, flatten_schema=None):
     return False
 
 
-# pylint: disable-msg=too-many-arguments
+# pylint: disable-msg=too-many-arguments,missing-function-docstring,missing-class-docstring
 def flatten_record(d, flatten_schema=None, parent_key=[], sep='__', level=0, max_level=0):
     items = []
     for k, v in d.items():

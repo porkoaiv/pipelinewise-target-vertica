@@ -1,6 +1,4 @@
 """Exceptions used by pipelinewise-target-vertica"""
-from vertica_python.errors import CopyRejected
-
 
 class RecordValidationException(Exception):
     """Exception to raise when record validation failed"""
