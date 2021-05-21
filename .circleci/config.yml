@@ -1,27 +1,23 @@
-version: 2
+version: 2.1
 
 references:
   container_config: &container_config
     docker:
       # Main Python container
-      - image: circleci/python:3.6.2
+      - image: circleci/python:3.8.3
         environment:
-          TARGET_POSTGRES_HOST: test_postgres
-          TARGET_POSTGRES_PORT: 5432
-          TARGET_POSTGRES_USER: test_user
-          TARGET_POSTGRES_PASSWORD: my-secret-passwd
-          TARGET_POSTGRES_DBNAME: tap_postgres_test
-          TARGET_POSTGRES_SCHEMA: test_target_postgres
+          TARGET_VERTICA_HOST: test_vertica
+          TARGET_VERTICA_PORT: 5433
+          TARGET_VERTICA_USER: dbadmin
+          TARGET_VERTICA_PASSWORD: secret
+          TARGET_VERTICA_DBNAME: docker
+          TARGET_VERTICA_SCHEMA: myschema
 
-      # PostgreSQL service container image used as test source database
-      - image: postgres:11.4
-        name: test_postgres
+      # Vertica service container image used as test source database
+      - image: jbfavre/vertica
+        name: test_vertica
         environment:
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: my-secret-passwd
-          POSTGRES_DB: tap_postgres_test
-        ports:
-          - 5432:5432
+          DATABASE_PASSWORD: secret
 
 jobs:
   build:
@@ -33,28 +29,29 @@ jobs:
       - run:
           name: 'Setup virtual environment'
           command: |
-            python3 -m venv ./virtualenvs/target-postgres
-            . ./virtualenvs/target-postgres/bin/activate
+            python3 -m venv ./virtualenvs/target-vertica
+            . ./virtualenvs/target-vertica/bin/activate
             pip install --upgrade pip
             pip install -e .[test]
 
       - run:
           name: 'Pylinting'
           command: |
-            . ./virtualenvs/target-postgres/bin/activate
-            pylint --rcfile .pylintrc --disable duplicate-code target_postgres/
+            . ./virtualenvs/target-vertica/bin/activate
+            pylint --rcfile .pylintrc --disable duplicate-code target_vertica/
 
       - run:
           name: 'Unit Tests'
           command: |
-            . ./virtualenvs/target-postgres/bin/activate
+            . ./virtualenvs/target-vertica/bin/activate
             export LOGGING_CONF_FILE=$(pwd)/sample_logging.conf
+            dockerize -wait tcp://test_vertica:5433 -timeout 1m
             nosetests --where=tests/unit
 
       - run:
           name: 'Integration Tests'
           command: |
-            . ./virtualenvs/target-postgres/bin/activate
+            . ./virtualenvs/target-vertica/bin/activate
             export LOGGING_CONF_FILE=$(pwd)/sample_logging.conf
             nosetests --where=tests/integration/
 
