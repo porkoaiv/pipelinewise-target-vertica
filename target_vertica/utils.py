@@ -15,7 +15,7 @@ LOGGER = get_logger('target_vertica')
 
 # ========= STREAM UTILS BELOW =========
 
-DEFAULT_VARCHAR_LENGTH = 80
+DEFAULT_VARCHAR_LENGTH = 1024
 LONG_VARCHAR_LENGTH = 65000
 
 

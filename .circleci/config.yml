@@ -27,6 +27,12 @@ jobs:
       - checkout
 
       - run:
+          name: Waiting for the Vertica Server
+          command: |
+            dockerize -wait tcp://test_vertica:5433 -timeout 1m
+            sleep 60
+
+      - run:
           name: 'Setup virtual environment'
           command: |
             python3 -m venv ./virtualenvs/target-vertica

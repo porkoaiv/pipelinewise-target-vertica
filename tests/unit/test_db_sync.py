@@ -72,8 +72,8 @@ class TestUnit(unittest.TestCase):
         json_arr =          {"type": ["array"]              }
         
         # Mapping from JSON schema types to Vertica column types
-        self.assertEquals(mapper(json_str)          , 'varchar(80)')
-        self.assertEquals(mapper(json_str_or_null)  , 'varchar(80)')
+        self.assertEquals(mapper(json_str)          , 'varchar(1024)')
+        self.assertEquals(mapper(json_str_or_null)  , 'varchar(1024)')
         self.assertEquals(mapper(json_dt)           , 'timestamp')
         self.assertEquals(mapper(json_dt_or_null)   , 'timestamp')
         self.assertEquals(mapper(json_t)            , 'time')
@@ -83,7 +83,7 @@ class TestUnit(unittest.TestCase):
         self.assertEquals(mapper(json_int)          , 'int')
         self.assertEquals(mapper(json_bigint)       , 'bigint')
         self.assertEquals(mapper(json_nobound_int)  , 'int')
-        self.assertEquals(mapper(json_int_or_str)   , 'varchar(80)')
+        self.assertEquals(mapper(json_int_or_str)   , 'varchar(1024)')
         self.assertEquals(mapper(json_bool)         , 'boolean')
         self.assertEquals(mapper(json_obj)          , 'varchar(65000)')
         self.assertEquals(mapper(json_arr)          , 'varchar(65000)')

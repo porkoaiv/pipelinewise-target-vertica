@@ -26,7 +26,7 @@ It's recommended to use a virtualenv:
 
 ```bash
   python3 -m venv venv
-  pip install git+https://Saadmairaj@bitbucket.org/Saadmairaj/pipelinewise-target-vertica
+  pip install pipelinewise-target-vertica
 ```
 
 or
