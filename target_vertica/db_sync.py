@@ -15,6 +15,7 @@ from target_vertica.utils import (
     safe_column_name,
     stream_name_to_dict,
     validate_config,
+    LOGGER,
 )
 
 
@@ -443,8 +444,12 @@ class DbSync:
 
         columns_to_replace = []
         for (name, properties_schema) in self.flatten_schema.items():
-            if (name.lower() in columns_dict and
-                    columns_dict[name.lower()]['data_type'].lower() != column_type(properties_schema).lower()):
+            db_data_type = columns_dict[name.lower()]['data_type'].lower()
+            input_data_type = column_type(properties_schema).lower()
+            if name.lower() in columns_dict and db_data_type != input_data_type:
+                LOGGER.info(
+                    f"Replace column {name.lower()} db_data_type={db_data_type} input_data_type={input_data_type}"
+                )
                 columns_to_replace.append(
                     (safe_column_name(name), column_clause(name, properties_schema)))
 
