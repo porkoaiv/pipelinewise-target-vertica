@@ -1,4 +1,5 @@
 import json
+import re
 import sys
 import uuid
 import time
@@ -17,6 +18,10 @@ from target_vertica.utils import (
     validate_config,
     LOGGER,
 )
+
+NUMERIC_DATA_TYPE = "numeric"
+RE_NUMERIC = re.compile(rf'{NUMERIC_DATA_TYPE}', re.I)
+RE_PRECISION = re.compile(rf'{NUMERIC_DATA_TYPE}\([0-9]+(,[0-9]+)?\)', re.I)
 
 
 # pylint: disable=too-many-public-methods,too-many-instance-attributes,missing-class-docstring,missing-function-docstring
@@ -424,6 +429,16 @@ class DbSync:
             (table_name.replace("\"", "").lower(), self.schema_name.lower())
         )
 
+    @staticmethod
+    def data_types_equal(input_data_type: str, db_data_type: str) -> bool:
+        # When numeric precision is NOT sent by Singer, Vertica DB may return it anyway
+        # E.g. if input is NUMERIC, Vertica returns NUMERIC(37,15) - max precision
+        # In this case, we must return equal and do not replace columns
+        if RE_PRECISION.match(db_data_type) and RE_NUMERIC.match(input_data_type):
+            return True
+        else:
+            return input_data_type == db_data_type
+
     def update_columns(self):
         """Adds required but not existing columns to the target table according to the schema"""
         stream_schema_message = self.stream_schema_message
@@ -446,8 +461,8 @@ class DbSync:
         for (name, properties_schema) in self.flatten_schema.items():
             db_data_type = columns_dict[name.lower()]['data_type'].lower()
             input_data_type = column_type(properties_schema).lower()
-            if name.lower() in columns_dict and db_data_type != input_data_type:
-                LOGGER.info(
+            if name.lower() in columns_dict and not self.data_types_equal(input_data_type, db_data_type):
+                LOGGER.debug(
                     f"Replace column {name.lower()} db_data_type={db_data_type} input_data_type={input_data_type}"
                 )
                 columns_to_replace.append(
