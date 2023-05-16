@@ -4,7 +4,10 @@ import ast
 import re
 import itertools
 import inflection
-import collections
+if sys.version_info.major == 3 and sys.version_info.minor >= 10:
+    from collections.abc import MutableMapping
+else:
+    from collections import MutableMapping
 
 from decimal import Decimal
 from singer import get_logger
@@ -231,7 +234,7 @@ def flatten_record(d, flatten_schema=None, parent_key=[], sep='__', level=0, max
     items = []
     for k, v in d.items():
         new_key = flatten_key(k, parent_key, sep)
-        if isinstance(v, collections.MutableMapping) and level < max_level:
+        if isinstance(v, MutableMapping) and level < max_level:
             items.extend(flatten_record(v, flatten_schema, parent_key + [k], sep=sep, level=level + 1,
                                         max_level=max_level).items())
         else:
