@@ -21,7 +21,7 @@ setup(name="pipelinewise-target-vertica",
           'pipelinewise-singer-python==1.*',
           'vertica-python==1.0.1',
           'inflection==0.3.1',
-          'joblib==1.0.0'
+          'joblib~=1.0.0',
       ],
       extras_require={
           "test": [
