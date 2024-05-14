@@ -1,133 +1,132 @@
-# pipelinewise-target-vertica
+# target-vertica
 
-<!-- [![PyPI version](https://badge.fury.io/py/pipelinewise-target-postgres.svg)](https://badge.fury.io/py/pipelinewise-target-postgres)
-[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/pipelinewise-target-postgres.svg)](https://pypi.org/project/pipelinewise-target-postgres/) -->
-[![License: Apache2](https://img.shields.io/badge/License-Apache2-yellow.svg)](https://opensource.org/licenses/Apache-2.0)
+`target-vertica` is a Singer target for vertica.
 
-[Singer](https://www.singer.io/) target that loads data into PostgreSQL following the [Singer spec](https://github.com/singer-io/getting-started/blob/master/docs/SPEC.md).
+Build with the [Meltano Target SDK](https://sdk.meltano.com).
 
-[Singer](https://www.singer.io/) target that loads data into Vertica following the [Singer spec](https://github.com/singer-io/getting-started/blob/master/docs/SPEC.md).
+<!--
 
-This is a [PipelineWise](https://transferwise.github.io/pipelinewise) compatible target connector.
+Developer TODO: Update the below as needed to correctly describe the install procedure. For instance, if you do not have a PyPi repo, or if you want users to directly install from your git repo, you can modify this step as appropriate.
 
-## How to use it
+## Installation
 
-The recommended method of running this target is to use it from [PipelineWise](https://transferwise.github.io/pipelinewise). When running it from PipelineWise you don't need to configure this tap with JSON files and most of things are automated.
-
-If you want to run this [Singer Target](https://singer.io) independently please read further.
-
-### Install
-
-First, make sure Python 3 is installed on your system or follow these
-installation instructions for [Mac](http://docs.python-guide.org/en/latest/starting/install3/osx/) or
-[Ubuntu](https://www.digitalocean.com/community/tutorials/how-to-install-python-3-and-set-up-a-local-programming-environment-on-ubuntu-16-04).
-
-It's recommended to use a virtualenv:
+Install from PyPi:
 
 ```bash
-  python3 -m venv venv
-  pip install pipelinewise-target-vertica
+pipx install target-vertica
 ```
 
-or
+Install from GitHub:
 
 ```bash
-  python3 -m venv venv
-  . venv/bin/activate
-  pip install --upgrade pip
-  pip install .
+pipx install git+https://github.com/ORG_NAME/target-vertica.git@main
 ```
 
-### To run
+-->
 
-Like any other target that's following the singer specification:
+## Configuration
 
-`some-singer-tap | target-vertica --config [config.json]`
+### Accepted Config Options
 
-It's reading incoming messages from STDIN and using the properties in `config.json` to upload data into Vertica.
+<!--
+Developer TODO: Provide a list of config options accepted by the target.
 
-**Note**: To avoid version conflicts run `tap` and `targets` in separate virtual environments.
+This section can be created by copy-pasting the CLI output from:
 
-### Configuration settings
+```
+target-vertica --about --format=markdown
+```
+-->
 
-Running the the target connector requires a `config.json` file. An example with the minimal settings:
+A full list of supported settings and capabilities for this
+target is available by running:
 
-```json
-{
-  "host": "localhost",
-  "port": 5433,
-  "user": "my_user",
-  "password": "secret",
-  "dbname": "my_db_name",
-  "default_target_schema": "my_target_schema"
-}
+```bash
+target-vertica --about
 ```
 
-Full list of options in `config.json`:
+### Configure using environment variables
 
-| Property                                | Type    | Required? | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| --------------------------------------- | ------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| host                                    | String  | Yes       | Vertica host                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| port                                    | Integer | Yes       | Vertica port                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| user                                    | String  | Yes       | Vertica user                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| password                                | String  | Yes       | Vertica password                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| dbname                                  | String  | Yes       | Vertica database name                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| batch_size_rows                         | Integer |           | (Default: 100000) Maximum number of rows in each batch. At the end of each batch, the rows in the batch are loaded into Vertica.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| flush_all_streams                       | Boolean |           | (Default: False) Flush and load every stream into Vertica when one batch is full. Warning: This may trigger the COPY command to use files with low number of records.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| parallelism                             | Integer |           | (Default: 0) The number of threads used to flush tables. 0 will create a thread for each stream, up to parallelism_max. -1 will create a thread for each CPU core. Any other positive number will create that number of threads, up to parallelism_max.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| max_parallelism                         | Integer |           | (Default: 16) Max number of parallel threads to use when flushing tables.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| default_target_schema                   | String  |           | Name of the schema where the tables will be created. If `schema_mapping` is not defined then every stream sent by the tap is loaded into this schema.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| default_target_schema_select_permission | String  |           | Grant USAGE privilege on newly created schemas and grant SELECT privilege on newly created                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| schema_mapping                          | Object  |           | Useful if you want to load multiple streams from one tap to multiple Vertica schemas.<br><br>If the tap sends the `stream_id` in `<schema_name>-<table_name>` format then this option overwrites the `default_target_schema` value. Note, that using `schema_mapping` you can overwrite the `default_target_schema_select_permission` value to grant SELECT permissions to different groups per schemas or optionally you can create indices automatically for the replicated tables.<br><br> **Note**: This is an experimental feature and recommended to use via PipelineWise YAML files that will generate the object mapping in the right JSON format. For further info check a [PipelineWise YAML Example](https://transferwise.github.io/pipelinewise/connectors/taps/mysql.html#configuring-what-to-replicate). |
-| add_metadata_columns                    | Boolean |           | (Default: False) Metadata columns add extra row level information about data ingestion's, (i.e. when was the row read in source, when was inserted or deleted in vertica etc.) Metadata columns are creating automatically by adding extra columns to the tables with a column prefix `_SDC_`. The column names are following the stitch naming conventions documented at https://www.stitchdata.com/docs/data-structure/integration-schemas#sdc-columns. Enabling metadata columns will flag the deleted rows by setting the `_SDC_DELETED_AT` metadata column. Without the `add_metadata_columns` option the deleted rows from singer taps will not be recognizable in Vertica.                                                                                                                                      |
-| hard_delete                             | Boolean |           | (Default: False) When `hard_delete` option is true then DELETE SQL commands will be performed in Vertica to delete rows in tables. It's achieved by continuously checking the `_SDC_DELETED_AT` metadata column sent by the singer tap. Due to deleting rows requires metadata columns, `hard_delete` option automatically enables the `add_metadata_columns` option as well.                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| data_flattening_max_level               | Integer |           | (Default: 0) Object type RECORD items from taps can be transformed to flattened columns by creating columns automatically.<br><br>When value is 0 (default) then flattening functionality is turned off.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| primary_key_required                    | Boolean |           | (Default: True) Log based and Incremental replications on tables with no Primary Key cause duplicates when merging UPDATE events. When set to true, stop loading data if no Primary Key is defined.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| validate_records                        | Boolean |           | (Default: False) Validate every single record message to the corresponding JSON schema. This option is disabled by default and invalid RECORD messages will fail only at load time by Vertica. Enabling this option will detect invalid records earlier but could cause performance degradation.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| temp_dir                                | String  |           | (Default: platform-dependent) Directory of temporary CSV files with RECORD messages.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+This Singer target will automatically import any environment variables within the working directory's
+`.env` if the `--config=ENV` is provided, such that config values will be considered if a matching
+environment variable is set either in the terminal context or in the `.env` file.
 
-### To run tests
+### Source Authentication and Authorization
 
-1. Define environment variables that requires running the tests
+<!--
+Developer TODO: If your target requires special access on the destination system, or any special authentication requirements, provide those here.
+-->
 
-    ```bash
-      export TARGET_VERTICA_HOST=<vertica-host>
-      export TARGET_VERTICA_PORT=<vertica-port>
-      export TARGET_VERTICA_USER=<vertica-password>
-      export TARGET_VERTICA_PASSWORD=<vertica-password>
-      export TARGET_VERTICA_DBNAME=<vertica-dbname>
-      export TARGET_VERTICA_SCHEMA=<vertica-schema>
-    ```
+## Usage
 
-2. Install python dependencies in a virtual env and run nose unit and integration tests
+You can easily run `target-vertica` by itself or in a pipeline using [Meltano](https://meltano.com/).
 
-    ```bash
-      python3 -m venv venv
-      . venv/bin/activate
-      pip install --upgrade pip
-      pip install .[test]
-    ```
+### Executing the Target Directly
 
-3. To run unit tests:
+```bash
+target-vertica --version
+target-vertica --help
+# Test using the "Carbon Intensity" sample:
+tap-carbon-intensity | target-vertica --config /path/to/target-vertica-config.json
+```
 
-    ```bash
-      nosetests --where=tests/unit
-    ```
+## Developer Resources
 
-4. To run integration tests:
+Follow these instructions to contribute to this project.
 
-    ```bash
-      nosetests --where=tests/integration
-    ```
+### Initialize your Development Environment
 
-### To run pylint
+```bash
+pipx install poetry
+poetry install
+```
 
-1. Install python dependencies and run python linter
+### Create and Run Tests
 
-    ```bash
-      python3 -m venv venv
-      . venv/bin/activate
-      pip install --upgrade pip
-      pip install .[test]
-      pylint --rcfile .pylintrc --disable duplicate-code target_vertica/
-    ```
+Create tests within the `tests` subfolder and
+  then run:
+
+```bash
+poetry run pytest
+```
+
+You can also test the `target-vertica` CLI interface directly using `poetry run`:
+
+```bash
+poetry run target-vertica --help
+```
+
+### Testing with [Meltano](https://meltano.com/)
+
+_**Note:** This target will work in any Singer environment and does not require Meltano.
+Examples here are for convenience and to streamline end-to-end orchestration scenarios._
+
+<!--
+Developer TODO:
+Your project comes with a custom `meltano.yml` project file already created. Open the `meltano.yml` and follow any "TODO" items listed in
+the file.
+-->
+
+Next, install Meltano (if you haven't already) and any needed plugins:
+
+```bash
+# Install meltano
+pipx install meltano
+# Initialize meltano within this directory
+cd target-vertica
+meltano install
+```
+
+Now you can test and orchestrate using Meltano:
+
+```bash
+# Test invocation:
+meltano invoke target-vertica --version
+# OR run a test `elt` pipeline with the Carbon Intensity sample tap:
+meltano run tap-carbon-intensity target-vertica
+```
+
+### SDK Dev Guide
+
+See the [dev guide](https://sdk.meltano.com/en/latest/dev_guide.html) for more instructions on how to use the Meltano Singer SDK to
+develop your own Singer taps and targets.
